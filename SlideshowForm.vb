@@ -35,24 +35,16 @@ Public Class SlideshowForm
 
             watchfolder = New System.IO.FileSystemWatcher()
             watchfolder.IncludeSubdirectories = True
-            watchfolder.Path = ImageFolder      
-            watchfolder.NotifyFilter = watchfolder.NotifyFilter Or _
-                                       IO.NotifyFilters.FileName
+            watchfolder.Path = ImageFolder
+            watchfolder.NotifyFilter = IO.NotifyFilters.FileName
             AddHandler watchfolder.Created, AddressOf LoadNewImage
             watchfolder.EnableRaisingEvents = True
-
-            'if no image is found...
-            If ImageFiles.Count = 0 Then
-                MessageBox.Show("No image can be found.", "Program is closing...", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                Me.Close()
-            End If
 
             'Hide Message
             MessageValue.Height = 0
 
             'Load Image     
             ShowImage()
-
 
 #If Not Debug Then
             'Set the image to full screen          
@@ -72,7 +64,7 @@ Public Class SlideshowForm
     End Sub
     Private Sub MainForm_FormClosing(sender As System.Object, e As System.Windows.Forms.FormClosingEventArgs) Handles MyBase.FormClosing
         If SlideshowSplashScreen IsNot Nothing AndAlso SlideshowSplashScreen.Visible Then
-            SlideshowSplashScreen.Close()            
+            SlideshowSplashScreen.Close()
         End If
         watchfolder.EnableRaisingEvents = False
         SlideshowTimer.Enabled = False
@@ -111,6 +103,14 @@ Public Class SlideshowForm
         If MessageValue.Visible Then MessageValue.Height = MessageDisplayHeight
 
         MessageTimer.Enabled = MessageValue.Visible
+    End Sub
+
+    Private Sub SlideshowPictureBox_LoadCompleted(sender As System.Object, e As System.ComponentModel.AsyncCompletedEventArgs) Handles SlideshowPictureBox.LoadCompleted
+        If e.Error IsNot Nothing Then
+            'Unable to load image file, so remove from our list and load the next image
+            ImageFiles.RemoveAt(ImageIndex)
+            ShowImage()
+        End If
     End Sub
 
 #End Region
@@ -243,22 +243,26 @@ Public Class SlideshowForm
                 'loop to first image
                 ImageIndex = 0
             End If
-            If IO.File.Exists(ImageFiles(ImageIndex)) Then
+            If ImageFiles.Count > 0 AndAlso IO.File.Exists(ImageFiles(ImageIndex)) Then
                 SlideshowPictureBox.ImageLocation = ImageFiles(ImageIndex)
             Else
                 'image not found, remove from list
-                ImageFiles.RemoveAt(ImageIndex)
+                If ImageFiles.Count > 0 Then ImageFiles.RemoveAt(ImageIndex)
                 If ImageFiles.Count <= 0 Then
                     'no images left.
-                    'stop slideshow
+
+                    'stop slideshow                    
                     SlideshowTimer.Enabled = False
+
                     'show error message
-                    MessageBox.Show("No image can be found.", "Program is closing...", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                    Me.Close()
+                    MessageValue.Text = "Closing...no images found"
+                    MessageValue.Visible = True                
+
+                Me.Close()
                 Else
-                    'show new image at old index               
-                    ShowImage()
-                End If
+                'show new image at old index               
+                ShowImage()
+            End If
             End If
         Catch ex As Exception
         Finally
@@ -330,18 +334,10 @@ Public Class SlideshowForm
                 'We add the new file to the list of images, so it will part of the slideshow.
                 ImageFiles.Add(e.FullPath)
         End Select
-
-        
     End Sub
 
 #End Region
 
 
-    Private Sub SlideshowPictureBox_LoadCompleted(sender As System.Object, e As System.ComponentModel.AsyncCompletedEventArgs) Handles SlideshowPictureBox.LoadCompleted
-        If e.Error IsNot Nothing Then
-            'Unable to load image file, so remove from our list and load the next image
-            ImageFiles.RemoveAt(ImageIndex)
-            ShowImage()
-        End If        
-    End Sub
+ 
 End Class
